@@ -1,124 +1,143 @@
-import React, { useState } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { motion } from "framer-motion";
-import { CheckCircle2, XCircle } from "lucide-react";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AWS Stepper Guide</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 40px;
+    }
 
-export default function AwsInteractiveGuide() {
-  const [activeStep, setActiveStep] = useState("s3");
+    .container {
+      max-width: 800px;
+      margin: auto;
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+    }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
-      <motion.h1
-        className="text-3xl font-bold text-center text-gray-800 mb-2"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        Interactive Guide to Secure Content Delivery
-      </motion.h1>
-      <p className="text-center text-gray-500 mb-8">
-        Visualizing AWS CloudFront Setup with a Private S3 Bucket
-      </p>
+    h1 {
+      text-align: center;
+      color: #232f3e;
+      margin-bottom: 40px;
+    }
 
-      <Tabs value={activeStep} onValueChange={setActiveStep} className="max-w-5xl mx-auto">
-        <TabsList className="grid grid-cols-4 bg-white shadow rounded-xl mb-6">
-          <TabsTrigger value="s3">1. Prepare S3 Bucket</TabsTrigger>
-          <TabsTrigger value="oac">2. Create OAC</TabsTrigger>
-          <TabsTrigger value="cloudfront">3. Build Distribution</TabsTrigger>
-          <TabsTrigger value="test">4. Test & Verify</TabsTrigger>
-        </TabsList>
+    .step {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 30px;
+      position: relative;
+    }
 
-        {/* Step 1: S3 Bucket */}
-        <TabsContent value="s3">
-          <Card className="shadow-lg">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Step 1: Prepare Your S3 Bucket</h2>
-              <p className="text-gray-600 mb-4">
-                The foundation of our setup is a secure, private S3 bucket. This will hold static content (HTML, CSS, JS, images), but it will not be directly accessible from the internet.
-              </p>
-              <ul className="space-y-3">
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="text-green-600 mt-1" />
-                  <span><strong>Create S3 Bucket:</strong> Choose a globally unique name for your bucket.</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <CheckCircle2 className="text-green-600 mt-1" />
-                  <span><strong>Upload Content:</strong> Add all your static files (HTML, CSS, JS, images).</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <XCircle className="text-red-600 mt-1" />
-                  <span><strong>Block Public Access:</strong> Enable this setting to ensure files are private.</span>
-                </li>
-              </ul>
-              <div className="mt-6 text-right">
-                <Button onClick={() => setActiveStep("oac")}>Next: Create OAC →</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+    .circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #ff9900;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      font-size: 18px;
+      flex-shrink: 0;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+    }
 
-        {/* Step 2: OAC */}
-        <TabsContent value="oac">
-          <Card className="shadow-lg">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Step 2: Create an Origin Access Control (OAC)</h2>
-              <p className="text-gray-600 mb-4">
-                The OAC ensures CloudFront can securely access your private S3 bucket.
-              </p>
-              <ul className="space-y-3">
-                <li>Navigate to <strong>CloudFront</strong> in AWS console.</li>
-                <li>Create a new <strong>OAC</strong> under Security → Origin Access.</li>
-                <li>Assign a descriptive name (e.g., <code>my-s3-oac</code>).</li>
-                <li>Copy the generated <strong>bucket policy</strong> and apply it in S3 permissions.</li>
-              </ul>
-              <div className="mt-6 text-right">
-                <Button onClick={() => setActiveStep("cloudfront")}>Next: Build Distribution →</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+    .line {
+      position: absolute;
+      left: 19px;
+      top: 40px;
+      width: 2px;
+      height: 100%;
+      background: #d1d5db;
+      z-index: -1;
+    }
 
-        {/* Step 3: CloudFront */}
-        <TabsContent value="cloudfront">
-          <Card className="shadow-lg">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Step 3: Create CloudFront Distribution</h2>
-              <p className="text-gray-600 mb-4">
-                CloudFront will cache and deliver your content globally for performance and security.
-              </p>
-              <ul className="space-y-3">
-                <li>Choose your <strong>S3 bucket</strong> as the origin.</li>
-                <li>Enable <strong>Origin Access Control</strong> with the OAC created earlier.</li>
-                <li>Set viewer protocol policy to <strong>Redirect HTTP → HTTPS</strong>.</li>
-                <li>Allowed methods: <strong>GET, HEAD</strong>.</li>
-                <li>Apply caching policy: <strong>CachingOptimized</strong>.</li>
-                <li>Optionally add <strong>index.html</strong> as the default root object.</li>
-              </ul>
-              <div className="mt-6 text-right">
-                <Button onClick={() => setActiveStep("test")}>Next: Test & Verify →</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+    .step:last-child .line {
+      display: none;
+    }
 
-        {/* Step 4: Test */}
-        <TabsContent value="test">
-          <Card className="shadow-lg">
-            <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Step 4: Test Your Distribution</h2>
-              <ul className="space-y-3">
-                <li>Wait until status = <strong>Deployed</strong>.</li>
-                <li>Copy the <strong>CloudFront domain name</strong> (e.g., <code>d1234abcd.cloudfront.net</code>).</li>
-                <li>Test in your browser: <code>https://d1234abcd.cloudfront.net/index.html</code>.</li>
-              </ul>
-              <div className="mt-6 text-center">
-                <Button variant="success">🎉 Done! Your site is live.</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+    .content {
+      margin-left: 20px;
+    }
+
+    .content h2 {
+      margin: 0;
+      color: #232f3e;
+      font-size: 20px;
+    }
+
+    .content p {
+      margin: 6px 0 0;
+      color: #4b5563;
+      font-size: 15px;
+    }
+
+    /* Hover effect */
+    .step:hover .circle {
+      background: #232f3e;
+      transition: background 0.3s;
+    }
+
+    .step:hover .content h2 {
+      color: #ff9900;
+      transition: color 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AWS Stepper Guide</h1>
+
+    <div class="step">
+      <div class="circle">1</div>
+      <div class="line"></div>
+      <div class="content">
+        <h2>Create an S3 Bucket</h2>
+        <p>Set up an Amazon S3 bucket to securely store your website files.</p>
+      </div>
     </div>
-  );
-}
+
+    <div class="step">
+      <div class="circle">2</div>
+      <div class="line"></div>
+      <div class="content">
+        <h2>Enable Static Hosting</h2>
+        <p>Configure bucket properties to host static website content.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="circle">3</div>
+      <div class="line"></div>
+      <div class="content">
+        <h2>Attach CloudFront</h2>
+        <p>Distribute content globally with low latency using CloudFront.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="circle">4</div>
+      <div class="line"></div>
+      <div class="content">
+        <h2>Configure SSL</h2>
+        <p>Secure your website with HTTPS using AWS Certificate Manager.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="circle">5</div>
+      <div class="content">
+        <h2>Set Up DNS</h2>
+        <p>Use Route 53 to connect your custom domain with the hosted website.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
