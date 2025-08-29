@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Guide: Secure CloudFront & S3 Setup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals -->
+    <!-- Application Structure Plan: The application is structured as a single-page, multi-section interactive guide. A persistent top navigation bar allows users to jump between the four main stages of the setup process (S3, OAC, CloudFront, Test). This non-linear navigation is better than a simple document because it allows users to revisit steps easily. The core of the design is a master architectural diagram that is dynamically highlighted as the user progresses, providing constant context. Each step is presented on its own "card" with interactive elements, transforming passive reading into an active learning experience. This structure was chosen to break down a complex technical workflow into manageable, visually-supported chunks, enhancing comprehension and retention over a static text document. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Overall Architecture -> Goal: Organize/Inform -> Viz: Master Diagram (HTML/CSS) -> Interaction: JS-driven highlighting on scroll/click -> Justification: Provides a persistent mental map of how services connect.
+        - Report Info: Step 1 (S3 Setup) -> Goal: Inform -> Viz: Styled Card with Unicode Icons (🪣, 🔒) -> Interaction: Checkboxes for tasks -> Justification: Makes the initial setup feel actionable and clear.
+        - Report Info: Step 2 (OAC) -> Goal: Organize/Relationships -> Viz: Visual Flow Diagram (HTML/CSS arrows) -> Interaction: Simulated "Copy Policy" button -> Justification: Visualizes the abstract concept of granting permissions.
+        - Report Info: Step 3 (CloudFront Config) -> Goal: Inform/Compare -> Viz: Accordion UI with interactive pseudo-form elements -> Interaction: Clicking options reveals explanatory tooltips -> Justification: Breaks down the most complex step into logical sub-sections (Origin, Cache, etc.) and explains the "why" behind recommended settings.
+        - Report Info: Step 4 (Testing) -> Goal: Compare/Inform -> Viz: Diagram showing allowed vs. denied access paths -> Interaction: Hover effects on paths -> Justification: Clearly demonstrates the successful outcome of the security setup.
+        - Library/Method: All visuals are built with HTML/Tailwind CSS and manipulated with vanilla JavaScript. No external charting libraries needed or used.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFDFB;
+            color: #4A4A4A;
+        }
+        .nav-item {
+            transition: all 0.3s ease;
+            border-bottom: 4px solid transparent;
+        }
+        .nav-item.active {
+            border-bottom-color: #A98C6A;
+            color: #3C3633;
+        }
+        .step-content {
+            display: none;
+        }
+        .step-content.active {
+            display: block;
+        }
+        .diagram-box {
+            transition: all 0.3s ease;
+            border: 2px solid #D1D5DB;
+        }
+        .diagram-box.highlight {
+            border-color: #A98C6A;
+            box-shadow: 0 4px 14px 0 rgba(169, 140, 106, 0.2);
+            transform: translateY(-2px);
+        }
+        .arrow {
+            position: relative;
+            background: #A98C6A;
+            height: 2px;
+        }
+        .arrow::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            border-left: 10px solid #A98C6A;
+        }
+        .dashed-arrow {
+            position: relative;
+            width: 2px;
+            background-image: linear-gradient(to bottom, #DC2626 70%, transparent 30%);
+            background-size: 100% 10px;
+            background-repeat: repeat-y;
+        }
+        .dashed-arrow::after {
+            content: '✕';
+            color: #DC2626;
+            position: absolute;
+            bottom: -25px;
+            left: -8px;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-6xl">
+
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-[#3C3633] mb-2">Interactive Guide to Secure Content Delivery</h1>
+            <p class="text-lg text-gray-600">Visualizing AWS CloudFront Setup with a Private S3 Bucket</p>
+        </header>
+
+        <div class="sticky top-0 bg-[#FDFDFB]/80 backdrop-blur-sm z-10 mb-8 py-4">
+            <nav class="flex justify-center items-center border-b border-gray-200">
+                <a href="#step1" class="nav-item p-4 text-lg font-semibold text-gray-500" data-step="1">1. Prepare S3 Bucket</a>
+                <a href="#step2" class="nav-item p-4 text-lg font-semibold text-gray-500" data-step="2">2. Create OAC</a>
+                <a href="#step3" class="nav-item p-4 text-lg font-semibold text-gray-500" data-step="3">3. Build Distribution</a>
+                <a href="#step4" class="nav-item p-4 text-lg font-semibold text-gray-500" data-step="4">4. Test & Verify</a>
+            </nav>
+        </div>
+
+        <main id="main-content">
+            <section id="step1" class="step-content">
+                <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100">
+                    <h2 class="text-2xl font-bold text-[#3C3633] mb-4">Step 1: Prepare Your S3 Bucket</h2>
+                    <p class="text-gray-700 mb-6">The foundation of our setup is a secure, private S3 bucket. This bucket will hold your static content (HTML, CSS, images), but it will not be directly accessible to the public internet. This is a critical security principle.</p>
+                    <div class="flex flex-col md:flex-row items-center gap-8">
+                        <div class="w-full md:w-1/2">
+                            <ul class="space-y-4 text-lg">
+                                <li class="flex items-start">
+                                    <span class="text-green-500 mr-3 mt-1">✓</span>
+                                    <div><strong class="font-semibold">Create S3 Bucket:</strong> Choose a globally unique name for your bucket.</div>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-green-500 mr-3 mt-1">✓</span>
+                                    <div><strong class="font-semibold">Upload Content:</strong> Add all your static files to the bucket.</div>
+                                </li>
+                                <li class="flex items-start">
+                                    <span class="text-red-500 mr-3 mt-1">❗</span>
+                                    <div><strong class="font-semibold">Enable "Block all public access":</strong> This is the most important setting. The bucket must remain private.</div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="w-full md:w-1/2 flex justify-center items-center p-6 bg-gray-50 rounded-lg">
+                            <div class="text-center">
+                                <span class="text-8xl">🪣</span>
+                                <div class="flex items-center justify-center mt-4 bg-red-100 text-red-700 font-semibold px-4 py-2 rounded-full">
+                                    <span class="text-2xl mr-2">🔒</span>
+                                    <span>Public Access Blocked</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="step2" class="step-content">
+                <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100">
+                    <h2 class="text-2xl font-bold text-[#3C3633] mb-4">Step 2: Create Origin Access Control (OAC)</h2>
+                    <p class="text-gray-700 mb-6">To allow CloudFront to access your private S3 bucket, we create an Origin Access Control. Think of this as a special key that only CloudFront can use. We then add a policy to the S3 bucket that explicitly trusts this "key."</p>
+                    <div class="flex flex-col items-center gap-4 p-6">
+                         <div class="flex items-center w-full max-w-2xl">
+                            <div id="diagram-cloudfront-2" class="diagram-box p-4 rounded-lg text-center w-1/3 bg-blue-50">
+                                <span class="text-4xl">☁️</span>
+                                <p class="font-semibold">CloudFront</p>
+                            </div>
+                            <div class="flex-grow flex flex-col items-center px-2">
+                               <p class="text-sm font-semibold mb-1 text-[#A98C6A]">Generates OAC</p>
+                               <div class="arrow w-full"></div>
+                               <p class="text-2xl mt-1">🔑</p>
+                            </div>
+                            <div id="diagram-s3-2" class="diagram-box p-4 rounded-lg text-center w-1/3 bg-orange-50">
+                               <span class="text-4xl">🪣</span>
+                               <p class="font-semibold">S3 Bucket</p>
+                            </div>
+                        </div>
+                        <p class="text-center text-gray-600 mt-4 max-w-2xl">After creating the OAC in the CloudFront console, you'll be given a JSON bucket policy. This policy must be copied and pasted into your S3 bucket's permissions tab. This action completes the secure handshake between the two services.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="step3" class="step-content">
+                <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100">
+                    <h2 class="text-2xl font-bold text-[#3C3633] mb-4">Step 3: Create the CloudFront Distribution</h2>
+                    <p class="text-gray-700 mb-6">This is where we configure how CloudFront will behave. We'll tell it where to find the content (the origin), how to handle traffic, and how to cache your files for performance.</p>
+                    <div class="space-y-4">
+                        <div class="border border-gray-200 rounded-lg">
+                            <button class="accordion-toggle flex justify-between items-center w-full p-4 font-semibold text-left">
+                                <span>1. Configure Origin</span>
+                                <span class="transform transition-transform duration-300">▼</span>
+                            </button>
+                            <div class="accordion-content overflow-hidden max-h-0 transition-all duration-500 ease-in-out p-4 pt-0">
+                                <p>Select your S3 bucket as the origin domain and choose the OAC you created. This tells CloudFront where to fetch content from and which "key" to use.</p>
+                            </div>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg">
+                            <button class="accordion-toggle flex justify-between items-center w-full p-4 font-semibold text-left">
+                                <span>2. Configure Default Cache Behavior</span>
+                                <span class="transform transition-transform duration-300">▼</span>
+                            </button>
+                            <div class="accordion-content overflow-hidden max-h-0 transition-all duration-500 ease-in-out p-4 pt-0">
+                                <ul class="list-disc list-inside space-y-2">
+                                    <li><strong>Viewer Protocol Policy:</strong> Set to `Redirect HTTP to HTTPS` for security.</li>
+                                    <li><strong>Allowed HTTP Methods:</strong> `GET, HEAD` is sufficient for static sites.</li>
+                                    <li><strong>Cache Policy:</strong> `CachingOptimized` is a great default for static content.</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg">
+                            <button class="accordion-toggle flex justify-between items-center w-full p-4 font-semibold text-left">
+                                <span>3. Configure Other Settings</span>
+                                <span class="transform transition-transform duration-300">▼</span>
+                            </button>
+                            <div class="accordion-content overflow-hidden max-h-0 transition-all duration-500 ease-in-out p-4 pt-0">
+                                <p>Set a `Default root object` (like `index.html`) so users don't have to type the full file path. You can also configure price class and an optional Web Application Firewall (WAF) for more security.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="step4" class="step-content">
+                <div class="bg-white p-8 rounded-xl shadow-md border border-gray-100">
+                    <h2 class="text-2xl font-bold text-[#3C3633] mb-4">Step 4: Test Your Distribution</h2>
+                    <p class="text-gray-700 mb-6">After deployment, it's time to verify the setup. The goal is to confirm that content is accessible through the CloudFront domain name, but direct access to the S3 bucket is denied.</p>
+                    <div class="flex flex-col md:flex-row justify-around items-start gap-8 mt-8">
+                        <div class="w-full md:w-1/2 p-6 border-2 border-green-500 bg-green-50 rounded-lg text-center">
+                            <h3 class="text-xl font-semibold text-green-800 mb-4">Correct Path: Access via CloudFront</h3>
+                            <div class="flex flex-col items-center gap-4 h-48">
+                                <div class="diagram-box p-4 rounded-lg text-center bg-gray-100">
+                                    <span class="text-4xl">👤</span>
+                                    <p class="font-semibold">User</p>
+                                </div>
+                                <div class="arrow w-24 transform rotate-90"></div>
+                                <div id="diagram-cloudfront-4" class="diagram-box p-4 rounded-lg text-center bg-blue-50">
+                                    <span class="text-4xl">☁️</span>
+                                    <p class="font-semibold">d123.cloudfront.net</p>
+                                </div>
+                            </div>
+                             <p class="mt-12 text-green-700">✅ Success! Content is served securely.</p>
+                        </div>
+
+                        <div class="w-full md:w-1/2 p-6 border-2 border-red-500 bg-red-50 rounded-lg text-center">
+                            <h3 class="text-xl font-semibold text-red-800 mb-4">Incorrect Path: Direct S3 Access</h3>
+                             <div class="flex flex-col items-center gap-4 h-48">
+                                <div class="diagram-box p-4 rounded-lg text-center bg-gray-100">
+                                    <span class="text-4xl">👤</span>
+                                    <p class="font-semibold">User</p>
+                                </div>
+                                <div class="dashed-arrow h-24"></div>
+                                <div id="diagram-s3-4" class="diagram-box p-4 rounded-lg text-center bg-orange-50">
+                                    <span class="text-4xl">🪣</span>
+                                    <p class="font-semibold">s3-bucket-url</p>
+                                </div>
+                            </div>
+                            <p class="mt-12 text-red-700">❌ Access Denied! The bucket is private.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const navItems = document.querySelectorAll('.nav-item');
+            const stepContents = document.querySelectorAll('.step-content');
+            const accordions = document.querySelectorAll('.accordion-toggle');
+
+            function setActiveStep(step) {
+                navItems.forEach(item => {
+                    item.classList.toggle('active', item.dataset.step === step);
+                });
+                stepContents.forEach(content => {
+                    content.classList.toggle('active', content.id === `step${step}`);
+                });
+            }
+
+            navItems.forEach(item => {
+                item.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const step = this.dataset.step;
+                    setActiveStep(step);
+                    history.pushState(null, '', `#step${step}`);
+                });
+            });
+
+            accordions.forEach(button => {
+                button.addEventListener('click', () => {
+                    const content = button.nextElementSibling;
+                    const icon = button.querySelector('span:last-child');
+                    
+                    if (content.style.maxHeight) {
+                        content.style.maxHeight = null;
+                        icon.style.transform = 'rotate(0deg)';
+                    } else {
+                        content.style.maxHeight = content.scrollHeight + "px";
+                        icon.style.transform = 'rotate(-180deg)';
+                    }
+                });
+            });
+
+            const initialStep = window.location.hash ? window.location.hash.substring(5) : '1';
+            setActiveStep(initialStep);
+        });
+    </script>
+</body>
+</html>
