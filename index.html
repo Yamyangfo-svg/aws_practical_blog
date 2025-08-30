@@ -1,143 +1,204 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AWS Stepper Guide</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Elegant Interactive CloudFront + S3 Guide</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9fafb;
-      margin: 0;
-      padding: 40px;
-    }
+    /* Step content animation */
+    .fade-slide-enter { opacity: 0; transform: translateY(18px); }
+    .fade-slide-enter-active { opacity: 1; transform: translateY(0); transition: opacity .45s ease, transform .45s ease; }
 
-    .container {
-      max-width: 800px;
-      margin: auto;
-      background: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
-    }
+    /* Progress bar animation */
+    .progress-bar { transition: width .7s ease-in-out; }
 
-    h1 {
-      text-align: center;
-      color: #232f3e;
-      margin-bottom: 40px;
-    }
+    /* Success modal + checkmark animation */
+    .modal-bg { background: rgba(15, 23, 42, 0.55); }
+    .draw { stroke-dasharray: 1000; stroke-dashoffset: 1000; animation: dash 1.2s ease forwards .25s; }
+    @keyframes dash { to { stroke-dashoffset: 0; } }
 
-    .step {
-      display: flex;
-      align-items: flex-start;
-      margin-bottom: 30px;
-      position: relative;
+    /* Confetti */
+    .confetti {
+      position: fixed; top: -10px; width: 8px; height: 14px; opacity: .9; pointer-events: none; border-radius: 2px;
+      animation: fall linear forwards; z-index: 60;
     }
-
-    .circle {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      background: #ff9900;
-      color: white;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-weight: bold;
-      font-size: 18px;
-      flex-shrink: 0;
-      box-shadow: 0 3px 8px rgba(0,0,0,0.2);
-    }
-
-    .line {
-      position: absolute;
-      left: 19px;
-      top: 40px;
-      width: 2px;
-      height: 100%;
-      background: #d1d5db;
-      z-index: -1;
-    }
-
-    .step:last-child .line {
-      display: none;
-    }
-
-    .content {
-      margin-left: 20px;
-    }
-
-    .content h2 {
-      margin: 0;
-      color: #232f3e;
-      font-size: 20px;
-    }
-
-    .content p {
-      margin: 6px 0 0;
-      color: #4b5563;
-      font-size: 15px;
-    }
-
-    /* Hover effect */
-    .step:hover .circle {
-      background: #232f3e;
-      transition: background 0.3s;
-    }
-
-    .step:hover .content h2 {
-      color: #ff9900;
-      transition: color 0.3s;
-    }
+    @keyframes fall { to { transform: translateY(110vh) rotate(360deg); opacity: 0.9; } }
   </style>
 </head>
-<body>
-  <div class="container">
-    <h1>AWS Stepper Guide</h1>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
+  <div class="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-3xl relative">
+    <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">🚀 CloudFront + S3 Deployment Guide</h1>
 
-    <div class="step">
-      <div class="circle">1</div>
-      <div class="line"></div>
-      <div class="content">
-        <h2>Create an S3 Bucket</h2>
-        <p>Set up an Amazon S3 bucket to securely store your website files.</p>
+    <!-- Top stepper -->
+    <div class="flex items-center justify-center gap-3 mb-6">
+      <template id="stepperTpl">
+        <div class="flex items-center">
+          <div class="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-white bg-gray-300" data-badge></div>
+          <div class="w-10 sm:w-16 h-1 bg-gray-300" data-rail></div>
+        </div>
+      </template>
+      <div id="stepper" class="flex items-center"></div>
+    </div>
+
+    <!-- Progress Bar with % -->
+    <div class="w-full bg-gray-200 rounded-full h-3 mb-2 overflow-hidden">
+      <div id="progress" class="bg-indigo-600 h-3 rounded-full progress-bar" style="width: 0%"></div>
+    </div>
+    <p id="progress-text" class="text-center text-sm font-medium text-gray-600 mb-6">Progress: 0%</p>
+
+    <!-- Step content -->
+    <div id="steps-container" class="min-h-[160px]">
+      <div class="step fade-slide-enter-active" id="step-1">
+        <h2 class="text-xl font-semibold mb-3">Step 1: Create an S3 Bucket</h2>
+        <p class="text-gray-700">AWS Console → S3 → Create bucket. Pick a unique name and region. Keep public access blocked (you'll use OAC/CloudFront later).</p>
+        <pre class="mt-4 bg-slate-900 text-green-400 p-4 rounded-lg overflow-auto text-sm"><code>aws s3 mb s3://my-unique-bucket-name</code></pre>
+      </div>
+      <div class="step hidden" id="step-2">
+        <h2 class="text-xl font-semibold mb-3">Step 2: Upload Website Files</h2>
+        <p class="text-gray-700">Upload your static files (HTML, CSS, JS, images) to the bucket.</p>
+        <pre class="mt-4 bg-slate-900 text-green-400 p-4 rounded-lg overflow-auto text-sm"><code>aws s3 sync ./website s3://my-unique-bucket-name</code></pre>
+      </div>
+      <div class="step hidden" id="step-3">
+        <h2 class="text-xl font-semibold mb-3">Step 3: Enable Static Website Hosting</h2>
+        <p class="text-gray-700">Enable static website hosting and set default documents.</p>
+        <pre class="mt-4 bg-slate-900 text-green-400 p-4 rounded-lg overflow-auto text-sm"><code>{
+  "IndexDocument": {"Suffix": "index.html"},
+  "ErrorDocument": {"Key": "error.html"}
+}</code></pre>
+      </div>
+      <div class="step hidden" id="step-4">
+        <h2 class="text-xl font-semibold mb-3">Step 4: Create CloudFront Distribution</h2>
+        <p class="text-gray-700">Use your S3 bucket as origin, attach OAC, force HTTPS, and set default root object.</p>
+        <pre class="mt-4 bg-slate-900 text-green-400 p-4 rounded-lg overflow-auto text-sm"><code>aws cloudfront create-distribution \
+  --origin-domain-name my-unique-bucket-name.s3.amazonaws.com</code></pre>
+      </div>
+      <div class="step hidden" id="step-5">
+        <h2 class="text-xl font-semibold mb-3">Step 5: Test Your Site</h2>
+        <p class="text-gray-700">Open your CloudFront domain (e.g., <span class="font-mono">dxxx.cloudfront.net</span>) and verify pages load correctly.</p>
       </div>
     </div>
 
-    <div class="step">
-      <div class="circle">2</div>
-      <div class="line"></div>
-      <div class="content">
-        <h2>Enable Static Hosting</h2>
-        <p>Configure bucket properties to host static website content.</p>
-      </div>
+    <!-- Controls -->
+    <div class="flex justify-between mt-8">
+      <button id="prevBtn" class="px-4 py-2 bg-gray-300 rounded-lg text-gray-800 font-medium hover:bg-gray-400 disabled:opacity-50" disabled>Back</button>
+      <button id="nextBtn" class="px-4 py-2 bg-indigo-600 rounded-lg text-white font-medium hover:bg-indigo-700">Next</button>
     </div>
 
-    <div class="step">
-      <div class="circle">3</div>
-      <div class="line"></div>
-      <div class="content">
-        <h2>Attach CloudFront</h2>
-        <p>Distribute content globally with low latency using CloudFront.</p>
-      </div>
-    </div>
-
-    <div class="step">
-      <div class="circle">4</div>
-      <div class="line"></div>
-      <div class="content">
-        <h2>Configure SSL</h2>
-        <p>Secure your website with HTTPS using AWS Certificate Manager.</p>
-      </div>
-    </div>
-
-    <div class="step">
-      <div class="circle">5</div>
-      <div class="content">
-        <h2>Set Up DNS</h2>
-        <p>Use Route 53 to connect your custom domain with the hosted website.</p>
+    <!-- Success Modal -->
+    <div id="successModal" class="fixed inset-0 hidden items-center justify-center modal-bg z-50">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 w-[90%] max-w-md text-center">
+        <svg class="mx-auto mb-4" width="96" height="96" viewBox="0 0 96 96" fill="none">
+          <circle cx="48" cy="48" r="42" class="stroke-green-500" stroke-width="6" fill="none"></circle>
+          <path d="M28 50 L42 64 L70 36" class="stroke-green-600 draw" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+        <h3 class="text-xl font-semibold text-gray-800">All steps complete!</h3>
+        <p class="text-gray-600 mt-1">Your CloudFront + S3 setup is ready. 🎉</p>
+        <button id="closeModal" class="mt-6 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Close</button>
       </div>
     </div>
   </div>
+
+  <script>
+    const steps = Array.from(document.querySelectorAll('.step'));
+    const progress = document.getElementById('progress');
+    const progressText = document.getElementById('progress-text');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const successModal = document.getElementById('successModal');
+    const closeModal = document.getElementById('closeModal');
+    const stepper = document.getElementById('stepper');
+    const stepperTpl = document.getElementById('stepperTpl');
+
+    let currentStep = 0;
+
+    // Build stepper UI
+    for (let i = 0; i < steps.length; i++) {
+      const frag = stepperTpl.content.cloneNode(true);
+      frag.querySelector('[data-badge]').textContent = i + 1;
+      // remove rail after last node
+      if (i === steps.length - 1) frag.querySelector('[data-rail]').remove();
+      stepper.appendChild(frag);
+    }
+
+    function updateStepper() {
+      const nodes = stepper.querySelectorAll('[data-badge]');
+      const rails = stepper.querySelectorAll('[data-rail]');
+      nodes.forEach((n, i) => {
+        n.classList.remove('bg-gray-300', 'bg-indigo-600', 'bg-green-500');
+        const state = (i < currentStep) ? 'bg-green-500' : (i === currentStep ? 'bg-indigo-600' : 'bg-gray-300');
+        n.classList.add(state);
+      });
+      rails.forEach((r, i) => {
+        r.classList.remove('bg-gray-300', 'bg-green-500');
+        r.classList.add(i < currentStep ? 'bg-green-500' : 'bg-gray-300');
+      });
+    }
+
+    function updateView() {
+      steps.forEach((el, idx) => {
+        el.classList.add('hidden');
+        el.classList.remove('fade-slide-enter-active');
+        if (idx === currentStep) {
+          el.classList.remove('hidden');
+          el.classList.add('fade-slide-enter');
+          requestAnimationFrame(() => el.classList.add('fade-slide-enter-active'));
+        }
+      });
+
+      const pct = Math.round(((currentStep + 1) / steps.length) * 100);
+      progress.style.width = pct + '%';
+      progressText.textContent = `Progress: ${pct}%`;
+
+      prevBtn.disabled = currentStep === 0;
+      nextBtn.textContent = currentStep === steps.length - 1 ? 'Finish' : 'Next';
+
+      updateStepper();
+    }
+
+    function launchConfetti() {
+      const colors = ['#60a5fa', '#34d399', '#f472b6', '#f59e0b', '#a78bfa'];
+      const count = 120;
+      for (let i = 0; i < count; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti';
+        piece.style.left = Math.random() * 100 + 'vw';
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.transform = `rotate(${Math.random()*360}deg)`;
+        piece.style.animationDuration = (Math.random() * 1.8 + 1.2) + 's';
+        piece.style.width = (Math.random() * 6 + 4) + 'px';
+        piece.style.height = (Math.random() * 12 + 8) + 'px';
+        document.body.appendChild(piece);
+        setTimeout(() => piece.remove(), 3200);
+      }
+    }
+
+    nextBtn.addEventListener('click', () => {
+      if (currentStep < steps.length - 1) {
+        currentStep++;
+        updateView();
+      } else {
+        // Completed!
+        successModal.classList.remove('hidden');
+        successModal.classList.add('flex');
+        launchConfetti();
+      }
+    });
+
+    prevBtn.addEventListener('click', () => {
+      if (currentStep > 0) {
+        currentStep--;
+        updateView();
+      }
+    });
+
+    closeModal.addEventListener('click', () => {
+      successModal.classList.add('hidden');
+      successModal.classList.remove('flex');
+    });
+
+    // Initial render
+    updateView();
+  </script>
 </body>
 </html>
